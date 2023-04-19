@@ -17,8 +17,11 @@ logging.config.dictConfig({
 })
 
 
-from sensorPoll import poll_start, stop_event   # controller function
-###
+root_logger = logging.getLogger()
+root_logger.handlers = []
+
+from sensorPoll import poll_start, poll_stop    # controller function
+from genVisuals import create_start, generate_stop
 
 
 logger = logging.getLogger('Household Monitor (controller.py)')
@@ -28,9 +31,10 @@ def interrupt_handler(signum, frame):
     ''' Handles SIGINT interrupts (Ctrl-C) '''
     ''' Handles SIGTERM interrupts (Kill)  '''
     logger.info(f'Handling signal {signum} ({signal.Signals(signum).name}).')
-    logger.info(f'Signaling other threads...')
+    logger.info(f'Terminating other threads...')
 
-    stop_event.set();
+    poll_stop.set();
+    generate_stop.set();
 
 
 def parse_arguments():
@@ -64,13 +68,21 @@ def main():
     logger.info(f'Generating new sensorPoll thread...')
     logger.debug(f'pin is %d, outputFile is %s, delay is %d seconds, debug status %s',
                  args.pin, args.file, args.time, args.debug)
-
     threadPoll = threading.Thread(target=poll_start, args=(args.pin,
                         args.file, args.time, args.debug))
-    threadPoll.start()
 
+    logger.info(f'Generating new genVisuals thread...')
+    logger.debug(f'inputFile is %s, debug status %s',
+                 args.file, args.debug)
+    threadGenerate = threading.Thread(target=create_start, args=(args.file,
+                                      "24-Hour Readings", "defaultGraph.png",
+                                      args.debug))
+
+    threadPoll.start()
+    threadGenerate.start()
 
     threadPoll.join()
+    threadGenerate.join()
 
     logger.info(f'Program terminating.')
 
@@ -78,6 +90,6 @@ def main():
 if __name__ == '__main__':
     ''' Handle force-stop signal, start main. '''
     signal.signal(signal.SIGINT, interrupt_handler)
-    signal.signal(signal.SIGTERM, interrupt_handler)
+    #signal.signal(signal.SIGTERM, interrupt_handler)
 
     main()

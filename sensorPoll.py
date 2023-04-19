@@ -1,11 +1,12 @@
 #! /usr/bin/python3
 
-
 import argparse
 import logging
 import logging.config
 import sys
-from threading import Event
+from threading import Condition, Event
+import threading
+import signal
 import csv
 import os
 import time
@@ -13,17 +14,19 @@ from datetime import datetime
 from gpiozero import InputDevice
 import Adafruit_DHT
 
-
 ''' DISABLE imported loggers. '''
 logging.config.dictConfig({
     'version': 1,
     'disable_existing_loggers': True,
 })
 
+root_logger = logging.getLogger()
+root_logger.handlers = []
 
-logger = logging.getLogger('----Sensor Poller (sensorPoll.py)')
-stop_event = Event()
+poll_stop = Event()                                                 # interupt event
+signal_condition = threading.Condition()                            # for signaling graph generator about updates
 sensor = Adafruit_DHT.DHT22                                         # change if using different sensor
+logger = logging.getLogger('----Sensor Poller (sensorPoll.py)')
 
 
 def parse_arguments():
@@ -48,7 +51,7 @@ def parse_arguments():
 def configure_logs(debug):
     '''Configure program logging.'''
     level = logging.DEBUG if debug else logging.INFO
-    logging.basicConfig(level=level, filename='temperatures.log',
+    logging.basicConfig(level=level,
                         format='%(name)s - %(asctime)s - %(levelname)s - %(message)s')
 
 
@@ -69,27 +72,17 @@ def check_csv(file):
             writer.writeheader()
 
 
-def wait_for_interrupt(myTime):
-    '''  Handles sleep, interupt from main thread. '''
-    while not stop_event.is_set():
-        stop_event.wait(myTime)
-        if stop_event.is_set():
-            logger.info('Stopping sensor due to interrupt...')
-            exit(0)
-
-def poll(sensor, pin, myTime, file):
+def poll(sensor, pin, file):
     '''Poll from sensor'''
     header = ['time','temperature(C)','humidity(%)']
     humidity, temperature = Adafruit_DHT.read_retry(sensor, pin)        # read temperature
     if temperature is not None and humidity is not None:
-        #logger.debug('Recording new entry in %s.', file)
         with open(file, 'a', newline='') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=header)
             writer.writerow({'time': datetime.now().strftime('%Y-%m-%dT%H:%M:%S'),      # ISO 8601, well rocognized format
                              'temperature(C)': round(temperature,4), 'humidity(%)': round(humidity,4)})
     else:
         logger.warning('Failed to read temperature.')
-    wait_for_interrupt(myTime)
 
 
 def poll_start(pin, outputFile, delay, debug):
@@ -102,9 +95,15 @@ def poll_start(pin, outputFile, delay, debug):
 
     logger.info('Starting sensor...')
 
-    while True:                                                         # read until interrupt
-        poll(sensor, pin, delay, outputFile)
+    while not poll_stop.is_set():                                                       # read until interrupt
+        poll(sensor, pin, outputFile)
+        logger.debug(f'Notifying genVisuals.py...')
+        with signal_condition:
+            signal_condition.notify()                                                   # tell generator to update
+        poll_stop.wait(delay)                                                           # wait can be interrupted by controller
 
+    logger.info('Stopping sensor due to interrupt...')
+    exit(0)
 
 
 def main():
@@ -112,20 +111,24 @@ def main():
     ''' independently, supporting extra command-line arguments. '''
 
     '''Configure options, set up files, writer.'''
-    args = parse_arguments()
+    '''args = parse_arguments()
     configure_logs(args.debug)
     check_csv(args.file)
 
     logger.info('Starting sensor connected to pin %d...', args.pin)
     if (args.number == 0):                                              # read until interrupt
         while True:
-            poll(sensor, args.pin, args.time, args.file)
+            poll(sensor, args.pin, args.file)
+            time.sleep(args.time)
     else:                                                               # read for number times
         while (args.number > 0):
-            poll(sensor, args.pin, args.time, args.file)
+            poll(sensor, args.pin, args.file)
             args.number = args.number - 1
+            time.sleep(args.time)
 
-    logger.info('Stopping sensor. Program completed successfully.')
+    logger.info('Stopping sensor. Program completed successfully.')'''
+
+    poll_start(4,"defaultOut.csv",5,True)
 
 if __name__ == '__main__':
     main()
