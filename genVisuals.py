@@ -5,7 +5,10 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
 ''' Dataframes '''
+import numpy as np
 import pandas as pd
+''' Manipulate time '''
+from datetime import datetime
 ''' Multithreading tools '''
 from threading import Event
 ''' Debugging tools '''
@@ -34,8 +37,6 @@ def parse_arguments():
                         action="store_true")
     parser.add_argument("-f", "--file", help="Specify file to read.",
                         default="temperatures.csv")
-    parser.add_argument("-t", "--title", help="Specify title for plots.",
-                        default="Temperatures and Humidity")
     parser.add_argument("-g", "--graph_name", help="Specify name of graph output file.",
                         default="testGraphs.png")
 
@@ -57,29 +58,43 @@ def get_dataframe(file):
     return pd.read_csv(file)
 
 
-def create_subplots(df, title, graph_name):
+def create_subplots(df, graph_name, time):
     '''Create all plot elements, including labeling.'''
-    data_elements = df.columns[1:3]                                 # chop off the date column for now
 
-    fig, axs = plt.subplots(nrows=len(data_elements))               # create subplots = num of columns
+    total = 24 * 60 * 60                                            # minutes in a day
+    reading_max = int(total/time)                                   # display only a day of temps
 
+    logger.info(f'reading max is {reading_max}')
+    print(f'reading max is {reading_max}')
 
-    for i, col in enumerate(data_elements):                         # plot subplots for each data element (temp, humid, etc.)
-        #logger.debug(f"i is: {i}")
-        axs[i].plot(df[col][1:])
-        #logger.debug(f'Plotted {df[col][1:3]}')
+    if len(df) >= (reading_max):
+        data_elements = df.iloc[-reading_max:, 1:3]                 # day of temps max
+        timestamps = df.iloc[-reading_max:, 0]                      # grab timestamp
+    else:
+        data_elements = df.iloc[0:, 1:3]
+        timestamps = df.iloc[0:, 0]
 
-        axs[i].set_xlabel('Reading')
+    logger.info(f'timestamps are: {timestamps}')
+    print(f'timestamps are: {timestamps.values[1:]}')
+    print(f'data_elements are: {data_elements.values[1:][:,[0]]}')
+    print(len(data_elements.columns))
+
+    fig, axs = plt.subplots(nrows=len(data_elements.columns))
+
+    for i, col in enumerate(data_elements.columns):
+        #axs[i].plot(timestamps.values[1:], data_elements.values[1:][:,[col]])         # don't plot header
+        axs[i].plot(timestamps[1:], data_elements[col][1:])         # don't plot header
+
+        axs[i].set_xlabel('Time')
         axs[i].set_ylabel(col)
         axs[i].set_title(col)
 
-    fig.suptitle(title)
+    fig.suptitle("24-Hour Readings")
     plt.tight_layout()
     plt.savefig(graph_name, dpi=300, format='png')
     plt.close()                                                     # close the figure (saves resources)
 
-
-def create_start(inputFile, title, graph_name, debug):
+def create_start(inputFile, graph_name, time, debug):
     '''  This function is called by the controller '''
     ''' (see controller.py for details.) '''
 
@@ -100,7 +115,7 @@ def create_start(inputFile, title, graph_name, debug):
             if signal_received:
                 logger.debug(f'Signal from sensorPoll.py received!')
                 df = get_dataframe(inputFile)                       # we have to reread csv every time
-                create_subplots(df, title, graph_name)
+                create_subplots(df, graph_name, time)
 
     logger.info('Stopping generation due to interrupt...')
     exit(0)
@@ -112,16 +127,16 @@ def main():
 
     ''' Configure options, read .csv, call plot function. '''
     args = parse_arguments()
+    configure_logs(args.debug)
 
     if not args.graph_name.endswith('.png'):                        # hope user knows what they're doing
         logger.warning(f"Specified graph name does not end in \".png\"!")
 
-    configure_logs(args.debug)
-
     df = get_dataframe(args.file)
     logger.debug(f"The dataframe is:\n{df[0:5].to_string(index=False)}")
+    print(f"The dataframe is:\n{df[0:5].to_string(index=False)}")
 
-    create_subplots(df, args.title, args.graph_name)
+    create_subplots(df, args.graph_name, 300)
 
-#if __name__ == '__main__':
-#    main()
+if __name__ == '__main__':
+   main()
