@@ -75,7 +75,7 @@ def main():
                  args.file, args.debug)
     threadGenerate = threading.Thread(target=create_start, args=(args.file,
                                       "24-Hour Readings", "defaultGraph.png",
-                                      args.debug))
+                                      args.time, args.debug))
 
     threadPoll.start()
     threadGenerate.start()
