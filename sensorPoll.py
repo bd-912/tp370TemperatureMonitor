@@ -14,24 +14,21 @@ from threading import Condition, Event
 import threading
 ''' Debugging tools '''
 import logging
-import logging.config
-import sys
 
 ''' Global variables '''
-logger = logging.getLogger('----Sensor Poller (sensorPoll.py)')
 poll_stop = Event()                                                     # interupt from controller.py
 signal_condition = threading.Condition()                                # signaler to genVisuals.py
 
-'''-----------------------------------------'''
+'''Main-------------------------------------'''
 
 class SensorThread(threading.Thread):
-    def __init__(self, logger, pin, outputFile, delay):
-        super().__init__()
+    def __init__(self, logger, pin, output_file, delay):
+        super().__init__()                                              # ???
         ''' Initialize fields required by sensor. '''
 
         self.logger = logger
         self.pin = pin
-        self. outputFile = outputFile
+        self.output_file = output_file
         self.delay = delay
 
         self.header = ['time','temperature(C)','humidity(%)', 'avtemp(C)', 'avHum(%)']
@@ -39,11 +36,11 @@ class SensorThread(threading.Thread):
         self.average_temp = None
         self.sensor = Adafruit_DHT.DHT22                                # DHT22 sensor by Adafruit
 
-        self.history = None                                             # initialized in get_deque
+        self.history = None                                             # initialized in _get_deque()
         self._check_csv()
         self._get_deque()
 
-        self.logger.debug("Sensor fields initialized.")
+        self.logger.debug('Sensor fields initialized.')
 
 
     def run(self):
@@ -62,16 +59,16 @@ class SensorThread(threading.Thread):
 
     def _check_csv(self):
         '''Open/create csv file'''
+        self.logger.info('Attempting to open file %s', self.output_file)
 
-        self.logger.info('Attempting to open file %s', self.outputFile)
-        if not self.outputFile.endswith('.csv'):                        # bad file specification
+        if not self.output_file.endswith('.csv'):                       # bad file specification
             self.logger.error('Specified file is not a csv!')
-            sys.exit(1)
-        if os.path.exists(self.outputFile):                             # file exists?
-            self.logger.debug('File %s found.', self.outputFile)
+            exit(1)
+        if os.path.exists(self.output_file):                            # file exists?
+            self.logger.debug('File %s found.', self.output_file)
         else:                                                           # create new header
-            self.logger.debug('File %s missing. Writing new header.', self.outputFile)
-            with open(self.outputFile, 'w', newline='') as csvfile:     # open in write mode
+            self.logger.debug('File %s missing. Writing new header.', self.output_file)
+            with open(self.output_file, 'w', newline='') as csvfile:    # open in write mode
                 writer = csv.DictWriter(csvfile, fieldnames=self.header)
                 writer.writeheader()
 
@@ -80,7 +77,7 @@ class SensorThread(threading.Thread):
         ''' Calculate the size of the deque '''
         ''' to store averages, given time. '''
         deque_size = math.floor(240/(self.delay/60))                    # four-hour history (4*60)
-        logger.debug('Creating deque of size {deque_size}...')
+        self.logger.debug('Creating deque of size {deque_size}...')
         self.history = deque(maxlen=deque_size)
 
 
@@ -93,7 +90,7 @@ class SensorThread(threading.Thread):
             self.history.append((temperature, humidity))                # add to history
             self._update_averages()                                     # update averages
 
-            with open(self.outputFile, 'a', newline='') as csvfile:     # open in append mode
+            with open(self.output_file, 'a', newline='') as csvfile:    # open in append mode
 
                 writer = csv.DictWriter(csvfile, fieldnames=self.header)
                 writer.writerow({'time': datetime.now().strftime('%Y-%m-%dT%H:%M:%S'),  # ISO 8601
@@ -110,4 +107,3 @@ class SensorThread(threading.Thread):
         humidity_sum = sum(humidity for _, humidity in self.history)
         self.average_temp = temp_sum / len(self.history)
         self.average_humidity = humidity_sum / len(self.history)
-
