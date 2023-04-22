@@ -7,23 +7,14 @@ import signal
 import argparse
 import logging
 import logging.config
-
-''' DISABLE imported loggers. '''
-'''   EXCEPT project files.   '''
-logging.config.dictConfig({
-    'version': 1,
-    'disable_existing_loggers': True,
-})
-root_logger = logging.getLogger()
-root_logger.handlers = []                                           # clear handlers from imports
-
 ''' Project files '''
 from sensorPoll import SensorThread, poll_stop                      # import interupt event, default function (see sensorPoll.py)
-from genVisuals import create_start, generate_stop                  # import interupt event, default function (see genVisuals.py)
+from genVisuals import GenerateThread, generate_stop                  # import interupt event, default function (see genVisuals.py)
 
 ''' Global variables '''
 controller_logger = logging.getLogger('Household Monitor (controller.py)')
 poll_logger = logging.getLogger('----Sensor Poller (sensorPoll.py)')
+gen_logger = logging.getLogger('--Image Generator (genVisuals.py)')
 
 '''-----------------------------------------'''
 def interrupt_handler(signum, frame):
@@ -67,6 +58,10 @@ def configure_logs(debug):
     poll_logger.addHandler(file_handler)
     poll_logger.setLevel(level)
 
+    ''' For the sensorPoll script '''
+    gen_logger.addHandler(file_handler)
+    gen_logger.setLevel(level)
+
 
 def main():
     ''' This is the main function for the entire program. '''
@@ -84,15 +79,14 @@ def main():
     controller_logger.info(f'Generating new genVisuals thread...')
     controller_logger.debug(f'inputFile is %s, debug status %s',
                  args.file, args.debug)
-    threadGenerate = threading.Thread(target=create_start, args=(args.file,
-                                      "defaultGraph.png",
-                                      args.time, args.debug))
+    gen_thread = GenerateThread(gen_logger, args.file,
+                                "defaultGraph.png", args.time)
 
     poll_thread.start()                                             # calls the run() method
-    threadGenerate.start()
+    gen_thread.start()
 
     poll_thread.join()
-    threadGenerate.join()
+    gen_thread.join()
 
     controller_logger.info(f'Program terminating.')
 
