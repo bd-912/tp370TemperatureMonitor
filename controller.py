@@ -18,18 +18,19 @@ root_logger = logging.getLogger()
 root_logger.handlers = []                                           # clear handlers from imports
 
 ''' Project files '''
-from sensorPoll import poll_start, poll_stop                        # import interupt event, default function (see sensorPoll.py)
+from sensorPoll import SensorThread, poll_stop                      # import interupt event, default function (see sensorPoll.py)
 from genVisuals import create_start, generate_stop                  # import interupt event, default function (see genVisuals.py)
 
 ''' Global variables '''
-logger = logging.getLogger('Household Monitor (controller.py)')
+controller_logger = logging.getLogger('Household Monitor (controller.py)')
+poll_logger = logging.getLogger('----Sensor Poller (sensorPoll.py)')
 
 '''-----------------------------------------'''
 def interrupt_handler(signum, frame):
     ''' Handles SIGINT interrupts (Ctrl-C) '''
     ''' Handles SIGTERM interrupts (Kill)  '''
-    logger.info(f'Handling signal {signum} ({signal.Signals(signum).name}).')
-    logger.info(f'Terminating other threads...')
+    controller_logger.info(f'Handling signal {signum} ({signal.Signals(signum).name}).')
+    controller_logger.info(f'Terminating other threads...')
 
     poll_stop.set()                                                 # set interrupt
     generate_stop.set()
@@ -51,10 +52,20 @@ def parse_arguments():
 
 
 def configure_logs(debug):
-    '''Configure program logging.'''
+    '''Configure program logging level.'''
     level = logging.DEBUG if debug else logging.INFO
-    logging.basicConfig(level=level, filename='controller.log',
-                        format='%(name)s - %(asctime)s - %(levelname)s - %(message)s')
+
+    ''' Configure file handler '''
+    file_handler = logging.FileHandler('controller.log')
+    file_handler.setFormatter(logging.Formatter('%(name)s - %(asctime)s - %(levelname)s - %(message)s'))
+
+    ''' For the controller script '''
+    controller_logger.addHandler(file_handler)
+    controller_logger.setLevel(level)
+
+    ''' For the sensorPoll script '''
+    poll_logger.addHandler(file_handler)
+    poll_logger.setLevel(level)
 
 
 def main():
@@ -63,27 +74,27 @@ def main():
     args = parse_arguments()
     configure_logs(args.debug)
 
-    logger.info(f'------------------------New session started:')
-    logger.info(f'Generating new sensorPoll thread...')
-    logger.debug(f'pin is %d, outputFile is %s, delay is %d seconds, debug status %s',
+    controller_logger.info(f'------------------------New session started:')
+    controller_logger.info(f'Generating new sensorPoll thread...')
+    controller_logger.debug(f'pin is %d, outputFile is %s, delay is %d seconds, debug status %s',
                  args.pin, args.file, args.time, args.debug)
-    threadPoll = threading.Thread(target=poll_start, args=(args.pin,
-                        args.file, args.time, args.debug))
+    poll_thread = SensorThread(poll_logger, args.pin,
+                               args.file, args.time)
 
-    logger.info(f'Generating new genVisuals thread...')
-    logger.debug(f'inputFile is %s, debug status %s',
+    controller_logger.info(f'Generating new genVisuals thread...')
+    controller_logger.debug(f'inputFile is %s, debug status %s',
                  args.file, args.debug)
     threadGenerate = threading.Thread(target=create_start, args=(args.file,
-                                      "24-Hour Readings", "defaultGraph.png",
+                                      "defaultGraph.png",
                                       args.time, args.debug))
 
-    threadPoll.start()
+    poll_thread.start()                                             # calls the run() method
     threadGenerate.start()
 
-    threadPoll.join()
+    poll_thread.join()
     threadGenerate.join()
 
-    logger.info(f'Program terminating.')
+    controller_logger.info(f'Program terminating.')
 
 
 if __name__ == '__main__':
