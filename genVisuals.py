@@ -50,9 +50,19 @@ class GenerateThread(threading.Thread):
                     self.logger.debug(f'Signal from sensorPoll.py received!')
                     self._get_dataframe()                           # we have to reread csv every time
                     self._create_subplots()
+                    self._create_table()
 
         self.logger.info('Stopping generation due to interrupt...')
         exit(0)
+
+
+    def debug(self):                                                # called by main (see below)
+        self.logger.debug(f'Getting dataframe...')
+        self._get_dataframe()
+        self.logger.debug(f'Generating {self.output_file}...')
+        self._create_subplots()
+        self.logger.debug(f'Creating tables...')
+        self._create_table()
 
 
     def _get_dataframe(self):
@@ -87,6 +97,11 @@ class GenerateThread(threading.Thread):
         plt.close()                                                 # close the figure (saves resources)
 
 
+    def _create_table(self):
+        table = self.df.iloc[3:, -1]                                # grab table elements
+        self.df.to_html("defaultTable.htm")
+
+
 '''Testing-Section--------------------------'''
 
 def parse_arguments():
@@ -95,18 +110,25 @@ def parse_arguments():
     parser.add_argument("-d", "--debug", help="Enable debug logs.",
                         action="store_true")
     parser.add_argument("-f", "--file", help="Specify file to read.",
-                        default="temperatures.csv")
+                        default="defaultRecords.csv")
     parser.add_argument("-g", "--graph_name", help="Specify name of graph output file.",
-                        default="testGraphs.png")
+                        default="testGraph.png")
 
     return parser.parse_args()
 
 
 def configure_logs(debug):
     '''Configure program logging.'''
+    test_logger = logging.getLogger(__name__)
     level = logging.DEBUG if debug else logging.INFO
-    logging.basicConfig(level=level,
-                        format='%(name)s - %(asctime)s - %(levelname)s - %(message)s')
+
+    file_handler = logging.FileHandler('genVisualsTest.log')
+    file_handler.setFormatter(logging.Formatter('%(name)s - %(levelname)s - %(message)s'))
+
+    test_logger.addHandler(file_handler)
+    test_logger.setLevel(level)
+
+    return test_logger
 
 
 def main():
@@ -115,16 +137,16 @@ def main():
 
     ''' Configure options, read .csv, call plot function. '''
     args = parse_arguments()
-    configure_logs(args.debug)
+    test_logger = configure_logs(args.debug)
 
     if not args.graph_name.endswith('.png'):                        # hope user knows what they're doing
-        logger.warning(f"Specified graph name does not end in \".png\"!")
+        test_logger.warning(f"Specified graph name does not end in \".png\"!")
 
-    df = get_dataframe(args.file)
-    logger.debug(f"The dataframe is:\n{df[0:5].to_string(index=False)}")
-    print(f"The dataframe is:\n{df[0:5].to_string(index=False)}")
+    generator = GenerateThread(test_logger, args.file, args.graph_name, 5)
+    generator.debug()
 
-    create_subplots(df, args.graph_name, 300)
+    test_logger.debug(f'Exiting genVisuals.py test...')
+
 
 if __name__ == '__main__':
     main()
