@@ -34,20 +34,22 @@ def parse_arguments():
                         default=4, type=int)                        # default gpio is FOUR
     parser.add_argument("-f", "--file", help="Specify output file Set this to a pre-existing file to resume session.",
                         default="defaultRecords.csv")
-    parser.add_argument("-t", "--time", help="Specify time inbetween sensor polls. Default is five minutes.",
+    parser.add_argument("-d", "--delay", help="Specify time inbetween sensor polls. Default is five minutes.",
                         default=300, type=int)
-    parser.add_argument("-d", "--debug", help="Enable full debug logs. See householdMonitor.log for information.",
+    parser.add_argument("-t", "--target", help="Specify time inbetween sensor polls. Default is five minutes.",
+                        default=21, type=int)
+    parser.add_argument("-v", "--verbose", help="Enable full debug logs. See householdMonitor.log for information.",
                         action="store_true")
 
     return parser.parse_args()
 
 
-def configure_logs(debug):
+def configure_logs(verbose):
     '''Configure program logging level.'''
-    level = logging.DEBUG if debug else logging.INFO
+    level = logging.DEBUG if verbose else logging.INFO
 
     ''' Configure file handler '''
-    file_handler = logging.FileHandler('controller.log')
+    file_handler = logging.FileHandler('householdMonitor.log')
     file_handler.setFormatter(logging.Formatter('%(name)s - %(asctime)s - %(levelname)s - %(message)s'))
 
     ''' For the controller script '''
@@ -58,7 +60,7 @@ def configure_logs(debug):
     poll_logger.addHandler(file_handler)
     poll_logger.setLevel(level)
 
-    ''' For the sensorPoll script '''
+    ''' For the genVisuals script '''
     gen_logger.addHandler(file_handler)
     gen_logger.setLevel(level)
 
@@ -67,20 +69,20 @@ def main():
     ''' This is the main function for the entire program. '''
     ''' Configure arguments, set up logger, generate new threads. '''
     args = parse_arguments()
-    configure_logs(args.debug)
+    configure_logs(args.verbose)
 
     controller_logger.info(f'------------------------New session started:')
     controller_logger.info(f'Generating new sensorPoll thread...')
     controller_logger.debug(f'pin is %d, outputFile is %s, delay is %d seconds, debug status %s',
-                 args.pin, args.file, args.time, args.debug)
+                 args.pin, args.file, args.delay, args.verbose)
     poll_thread = SensorThread(poll_logger, args.pin,
-                               args.file, args.time)
+                               args.file, args.delay)
 
     controller_logger.info(f'Generating new genVisuals thread...')
-    controller_logger.debug(f'inputFile is %s, debug status %s',
-                 args.file, args.debug)
+    controller_logger.debug(f'inputFile is %s, target is %d C, debug status %s',
+                 args.file, args.target, args.verbose)
     gen_thread = GenerateThread(gen_logger, args.file,
-                                "defaultGraph.png", args.time)
+                                "defaultGraph.png", args.target, args.delay)
 
     poll_thread.start()                                             # calls the run() method
     gen_thread.start()

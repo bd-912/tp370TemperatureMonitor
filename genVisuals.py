@@ -23,16 +23,18 @@ from sensorPoll import signal_condition                             # signaler f
 '''Main-------------------------------------'''
 
 class GenerateThread(threading.Thread):
-    def __init__(self, logger, input_file, output_file, delay):
+    def __init__(self, logger, input_file, output_file, target, delay):
         super().__init__()                                          # ???
         ''' Initialize fields required by generator. '''
 
         self.logger = logger
         self.input_file = input_file
         self.output_file = output_file
+        self.targets = (target, 30)                                 # ideal (or unideal) readings for reference
         self.max_display = int((24*60*60)/delay)                    # 24 hours of readings (size of graph x-axis
 
         self.df = None                                              # initialized in _get_dataframe()
+        self.colors = ('g','r')                                     # used to draw target (g) or minimum desired values (r)
 
         self.logger.info('Generator fields initialized')
 
@@ -91,6 +93,8 @@ class GenerateThread(threading.Thread):
             axs[i].set_ylabel(col)
             axs[i].set_title(col)
 
+            axs[i].axhline(y=self.targets[i], color=self.colors[i], linestyle='dashed')
+
         fig.suptitle("24-Hour Readings")
         plt.tight_layout()
         plt.savefig(self.output_file, dpi=300, format='png')
@@ -142,7 +146,7 @@ def main():
     if not args.graph_name.endswith('.png'):                        # hope user knows what they're doing
         test_logger.warning(f"Specified graph name does not end in \".png\"!")
 
-    generator = GenerateThread(test_logger, args.file, args.graph_name, 5)
+    generator = GenerateThread(test_logger, args.file, args.graph_name, 21, 5)
     generator.debug()
 
     test_logger.debug(f'Exiting genVisuals.py test...')

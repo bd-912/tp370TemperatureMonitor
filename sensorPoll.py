@@ -7,7 +7,6 @@ from datetime import datetime
 from collections import deque
 import math
 ''' Collection tools '''
-from gpiozero import InputDevice
 import Adafruit_DHT
 ''' Multithreading tools '''
 from threading import Condition, Event
