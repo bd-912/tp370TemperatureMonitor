@@ -49,7 +49,7 @@ def configure_logs(verbose):
     level = logging.DEBUG if verbose else logging.INFO
 
     ''' Configure file handler '''
-    file_handler = logging.FileHandler('householdMonitor.log')
+    file_handler = logging.FileHandler('./logs/householdMonitor.log')
     file_handler.setFormatter(logging.Formatter('%(name)s - %(asctime)s - %(levelname)s - %(message)s'))
 
     ''' For the controller script '''

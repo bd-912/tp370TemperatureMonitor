@@ -27,7 +27,7 @@ In order to utilize the Household Temperature Monitor, the user must have set up
 3 - Along with these files, create a symbolic link to where /ProjectFiles is contained. The other scripts save necessary files here.
 4 - If the ProjectFiles directory now appears alongside the .html scripts, exit supervisor mode and test your website domain. It is expected that images fail to load.
 5 - Execute the ./controller.py script using 'nohup'. If you end your session, the program will continue to execute. You can also view option parameters for your sensor using ./controller.py --help. Example use:
-    nohup ./controller.py -v
+    nohup ./controller.py -v &
 6 - The program should have generated some log files in the log directory, and a 'defaultRecords.csv file. These can be checked to ensure the program is running, and may include information if a flag was entered incorrectly.
 7 - If successful, the website should automatically populate with data for your current session.
 8 - To end your session, kill the process using Ctrl+C, or the 'kill' command. This will ensure all threads have the opportunity to clean up and terminate correctly.

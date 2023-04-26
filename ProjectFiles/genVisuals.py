@@ -126,7 +126,7 @@ def configure_logs(debug):
     test_logger = logging.getLogger(__name__)
     level = logging.DEBUG if debug else logging.INFO
 
-    file_handler = logging.FileHandler('genVisualsTest.log')
+    file_handler = logging.FileHandler('./logs/genVisuals.log')
     file_handler.setFormatter(logging.Formatter('%(name)s - %(levelname)s - %(message)s'))
 
     test_logger.addHandler(file_handler)
