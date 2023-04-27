@@ -4,6 +4,7 @@
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 ''' Dataframes '''
 import numpy as np
 import pandas as pd
@@ -34,7 +35,16 @@ class GenerateThread(threading.Thread):
         self.max_display = int((24*60*60)/delay)                    # 24 hours of readings (size of graph x-axis
 
         self.df = None                                              # initialized in _get_dataframe()
-        self.colors = ('g','r')                                     # used to draw target (g) or minimum desired values (r)
+        self.px = 1/plt.rcParams['figure.dpi']                      # for defining figuresize in pixels, matplotlib
+        self.colors = {                                             # dictionary containing all color information
+            'background': '#444444',
+            'subplot': '#555555',
+            'label': '#FFFFFF',
+            'title': '#008000',
+            'data': '#ffff00',
+            0: 'g',                                                 # colors to draw target values
+            1: 'r'
+        }
 
         self.logger.info('Generator fields initialized')
 
@@ -85,18 +95,24 @@ class GenerateThread(threading.Thread):
             data_elements = self.df.iloc[0:, 1:3]
             timestamps = self.df.iloc[0:, 0]
 
-        fig, axs = plt.subplots(nrows=len(data_elements.columns))
+        fig, axs = plt.subplots(figsize=(1260*self.px, 1575*self.px),
+                                nrows=len(data_elements.columns),
+                                facecolor=self.colors['background'])
         for i, col in enumerate(data_elements.columns):
-            axs[i].plot(timestamps[1:], data_elements[col][1:])     # don't plot header
+            axs[i].set_facecolor(self.colors['subplot'])
+            axs[i].plot(timestamps[1:], data_elements[col][1:], color=self.colors['data'])
 
-            axs[i].set_xlabel('Time')
-            axs[i].set_ylabel(col)
-            axs[i].set_title(col)
-
+            axs[i].set_xlabel('Hour', color=self.colors['label'])
+            axs[i].xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+            axs[i].set_ylabel(col, color=self.colors['label'])
             axs[i].axhline(y=self.targets[i], color=self.colors[i], linestyle='dashed')
+            axs[i].tick_params(labelcolor=self.colors['label'])
 
-        fig.suptitle("24-Hour Readings")
-        plt.tight_layout()
+            axs[i].set_title(col, color=self.colors['title'])
+
+
+        fig.suptitle('24-Hour Readings', color=self.colors['title'])
+        plt.tight_layout()                                          # fixes overlapping
         plt.savefig(self.output_file, dpi=300, format='png')
         plt.close()                                                 # close the figure (saves resources)
 
