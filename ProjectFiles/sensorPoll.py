@@ -63,13 +63,16 @@ class SensorThread(threading.Thread):
         if not self.output_file.endswith('.csv'):                       # bad file specification
             self.logger.error('Specified file is not a csv!')
             exit(1)
-        if os.path.exists(self.output_file):                            # file exists?
-            self.logger.debug('File %s found.', self.output_file)
-        else:                                                           # create new header
-            self.logger.debug('File %s missing. Writing new header.', self.output_file)
-            with open(self.output_file, 'w', newline='') as csvfile:    # open in write mode
-                writer = csv.DictWriter(csvfile, fieldnames=self.header)
-                writer.writeheader()
+        if os.path.exists(self.output_file):                            # rename old file
+            oldFile = self.output_file[0:-4]
+            oldFile += "Old.csv"
+            self.logger.debug(f'File {self.output_file} already exists.'
+                               'Renaming to {oldFile}.')
+            os.rename(self.output_file, oldFile)
+        self.logger.debug('Writing new header to {self.output_file}...')
+        with open(self.output_file, 'w', newline='') as csvfile:        # open in write mode
+            writer = csv.DictWriter(csvfile, fieldnames=self.header)
+            writer.writeheader()
 
 
     def _get_deque(self):
