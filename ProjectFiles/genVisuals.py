@@ -95,15 +95,18 @@ class GenerateThread(threading.Thread):
             data_elements = self.df.iloc[0:, 1:3]
             timestamps = self.df.iloc[0:, 0]
 
+        timestamps = pd.to_datetime(timestamps, format='%Y-%m-%dT%H:%M:%S', errors='ignore')
+        print(type(timestamps))
+
         fig, axs = plt.subplots(figsize=(1260*self.px, 1575*self.px),
                                 nrows=len(data_elements.columns),
                                 facecolor=self.colors['background'])
+        mdates.HourLocator()
         for i, col in enumerate(data_elements.columns):
             axs[i].set_facecolor(self.colors['subplot'])
             axs[i].plot(timestamps[1:], data_elements[col][1:], color=self.colors['data'])
 
             axs[i].set_xlabel('Hour', color=self.colors['label'])
-            axs[i].xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
             axs[i].set_ylabel(col, color=self.colors['label'])
             axs[i].axhline(y=self.targets[i], color=self.colors[i], linestyle='dashed')
             axs[i].tick_params(labelcolor=self.colors['label'])
@@ -113,7 +116,7 @@ class GenerateThread(threading.Thread):
 
         fig.suptitle('24-Hour Readings', color=self.colors['title'])
         plt.tight_layout()                                          # fixes overlapping
-        plt.savefig(self.output_file, dpi=300, format='png')
+        plt.savefig(self.output_file, format='png')
         plt.close()                                                 # close the figure (saves resources)
 
 
