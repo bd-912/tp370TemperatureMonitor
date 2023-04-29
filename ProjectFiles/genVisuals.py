@@ -24,26 +24,25 @@ from sensorPoll import signal_condition                             # signaler f
 '''Main-------------------------------------'''
 
 class GenerateThread(threading.Thread):
-    def __init__(self, logger, input_file, output_file, target, delay):
+    def __init__(self, logger, input_file, output_file, targetT, targetH, delay):
         super().__init__()                                          # ???
         ''' Initialize fields required by generator. '''
 
         self.logger = logger
         self.input_file = input_file
         self.output_file = output_file
-        self.targets = (target, 30)                                 # ideal (or unideal) readings for reference
+        self.targets = (targetT, targetH)                           # ideal readings user-specified
         self.max_display = int((24*60*60)/delay)                    # 24 hours of readings (size of graph x-axis
 
         self.df = None                                              # initialized in _get_dataframe()
         self.px = 1/plt.rcParams['figure.dpi']                      # for defining figuresize in pixels, matplotlib
-        self.colors = {                                             # dictionary containing all color information
-            'background': '#444444',
-            'subplot': '#555555',
-            'label': '#FFFFFF',
-            'title': '#008000',
-            'data': '#ffff00',
-            0: 'g',                                                 # colors to draw target values
-            1: 'r'
+
+        self.colors = {                                             # CHANGE COLORS HERE
+            'background': '#000000',
+            'label': '#FFFFFF',                                     # spines, text, etc
+            'title': '#009933',
+            'temp': '#0000ff',                                      # temperature data color
+            'humid': '#9900cc',                                     # humidity data color
         }
 
         self.logger.info('Generator fields initialized')
@@ -86,39 +85,69 @@ class GenerateThread(threading.Thread):
 
 
     def _create_subplots(self):
-        '''Create all plot elements, including labeling.'''
+        '''Create all plot elements, including labeling. '''
 
+        ''' Read in data split into time and readings. '''
         if len(self.df) >= self.max_display:
-            data_elements = self.df.iloc[-self.max_display:, 1:3]   # day of temps max
+            temperatures = self.df.iloc[-self.max_display:, 1]      # 24hr of temps max
+            humidities = self.df.iloc[-self.max_display:, 2]        # humid
             timestamps = self.df.iloc[-self.max_display:, 0]        # grab timestamp
         else:
-            data_elements = self.df.iloc[0:, 1:3]
+            temperatures = self.df.iloc[0:, 1]
+            humidities = self.df.iloc[0:, 2]
             timestamps = self.df.iloc[0:, 0]
 
-        timestamps = pd.to_datetime(timestamps, format='%Y-%m-%dT%H:%M:%S', errors='ignore')
-        print(type(timestamps))
+        timestamps = pd.to_datetime(timestamps,                     # convert time to 'datetime' objects
+                                    format='%Y-%m-%dT%H:%M:%S',     # allowing them to be automatically sized on axis
+                                    errors='ignore')
 
-        fig, axs = plt.subplots(figsize=(1260*self.px, 1575*self.px),
-                                nrows=len(data_elements.columns),
+        ''' Define resolution (1280x720) '''
+        fig, ax1 = plt.subplots(figsize=(1280*self.px, 720*self.px),
                                 facecolor=self.colors['background'])
-        mdates.HourLocator()
-        for i, col in enumerate(data_elements.columns):
-            axs[i].set_facecolor(self.colors['subplot'])
-            axs[i].plot(timestamps[1:], data_elements[col][1:], color=self.colors['data'])
 
-            axs[i].set_xlabel('Hour', color=self.colors['label'])
-            axs[i].set_ylabel(col, color=self.colors['label'])
-            axs[i].axhline(y=self.targets[i], color=self.colors[i], linestyle='dashed')
-            axs[i].tick_params(labelcolor=self.colors['label'])
+        ax1.set_facecolor(self.colors['background'])                # TEMPERATURE
+        ax1.scatter(timestamps, temperatures,
+                    color=self.colors['temp'],
+                    label='Temperature')
+        ax1.axhline(y=self.targets[0],                              # user-specified target value
+                    color=self.colors['temp'],
+                    linestyle='dotted',
+                    label='Target')
+        ax1.set_xlabel('time', color=self.colors['label'])
+        ax1.set_ylabel('Temperature (celsius)',
+                        color=self.colors['label'])
+        ax1.set_ylim(self.targets[0]-20, self.targets[0]+20)          # specify graph axis to get within +=20 from the target
+        ax1.tick_params(colors=self.colors['label'], which='both')
+        ax1.spines[:].set_color(self.colors['label'])               # frame around graph
+        ax1.legend(loc='upper right')
+        plt.grid(axis='both',                                       # draw grid
+                 which='both',
+                 color=self.colors['label'],
+                 linestyle='dotted',
+                 linewidth=1)
 
-            axs[i].set_title(col, color=self.colors['title'])
+        ax2 = ax1.twinx()                                           # plot humidity on same graph
+        ax2.set_facecolor(self.colors['background'])                # HUMIDITY
+        ax2.scatter(timestamps, humidities,
+                 color=self.colors['humid'],
+                 label='Humidity')
+        ax2.axhline(y=self.targets[1],                              # user-specified target value
+                    color=self.colors['humid'],
+                    linestyle='dashdot',
+                    label='Low')
+        ax2.set_ylabel('Humidity (percent)',
+                       color=self.colors['label'])
+        ax2.set_ylim(self.targets[1]-20, self.targets[1]+20)
+        ax2.tick_params(colors=self.colors['label'], which='both')
+        ax2.spines[:].set_color(self.colors['label'])               # frame around graph
+        ax2.legend(loc='lower right')
 
-
-        fig.suptitle('24-Hour Readings', color=self.colors['title'])
+        #fig.suptitle('24-Hour Readings',                           # Website contains this information
+        #             color=self.colors['title'],
+        #             fontsize=20)
         plt.tight_layout()                                          # fixes overlapping
         plt.savefig(self.output_file, format='png')
         plt.close()                                                 # close the figure (saves resources)
-
 
     def _create_table(self):
         table = self.df.iloc[3:, -1]                                # grab table elements
@@ -165,7 +194,7 @@ def main():
     if not args.graph_name.endswith('.png'):                        # hope user knows what they're doing
         test_logger.warning(f"Specified graph name does not end in \".png\"!")
 
-    generator = GenerateThread(test_logger, args.file, args.graph_name, 21, 5)
+    generator = GenerateThread(test_logger, args.file, args.graph_name, 21, 45, 5)
     generator.debug()
 
     test_logger.debug(f'Exiting genVisuals.py test...')

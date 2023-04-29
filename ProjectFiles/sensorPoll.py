@@ -30,7 +30,7 @@ class SensorThread(threading.Thread):
         self.output_file = output_file
         self.delay = delay
 
-        self.header = ['time','temperature(C)','humidity(%)', 'avtemp(C)', 'avHum(%)']
+        self.header = ['time','temperature (C)','humidity (%)', 'avtemp (C)', 'avHum (%)']
         self.average_humidity = None                                    # defined in get_averqages
         self.average_temp = None
         self.sensor = Adafruit_DHT.DHT22                                # DHT22 sensor by Adafruit
@@ -96,10 +96,10 @@ class SensorThread(threading.Thread):
 
                 writer = csv.DictWriter(csvfile, fieldnames=self.header)
                 writer.writerow({'time': datetime.now().strftime('%Y-%m-%dT%H:%M:%S'),  # ISO 8601
-                                      'temperature(C)': round(temperature,4),
-                                      'humidity(%)': round(humidity,4),
-                                      'avtemp(C)' : round(self.average_temp,4),
-                                      'avHum(%)' : round(self.average_humidity,4)})
+                                      'temperature (C)': round(temperature,4),
+                                      'humidity (%)': round(humidity,4),
+                                      'avtemp (C)' : round(self.average_temp,4),
+                                      'avHum (%)' : round(self.average_humidity,4)})
         else:
             self.logger.warning(f'Failed to read temperature. Check specified pin. ({self.pin})')
 
