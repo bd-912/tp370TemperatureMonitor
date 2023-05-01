@@ -24,7 +24,7 @@ from sensorPoll import signal_condition                             # signaler f
 '''Main-------------------------------------'''
 
 class GenerateThread(threading.Thread):
-    def __init__(self, logger, input_file, output_file, targetT, targetH, delay):
+    def __init__(self, logger, input_file, output_file, targetT, targetH, scale, delay):
         super().__init__()                                          # ???
         ''' Initialize fields required by generator. '''
 
@@ -32,6 +32,7 @@ class GenerateThread(threading.Thread):
         self.input_file = input_file
         self.output_file = output_file
         self.targets = (targetT, targetH)                           # ideal readings user-specified
+        self.scale = scale;
         self.max_display = int((24*60*60)/delay)                    # 24 hours of readings (size of graph x-axis
 
         self.df = None                                              # initialized in _get_dataframe()
@@ -40,7 +41,7 @@ class GenerateThread(threading.Thread):
         self.colors = {                                             # CHANGE COLORS HERE
             'background': '#000000',
             'label': '#FFFFFF',                                     # spines, text, etc
-            'title': '#009933',
+            'title': '#009933',                                     # also used for targets
             'temp': '#0000ff',                                      # temperature data color
             'humid': '#9900cc',                                     # humidity data color
         }
@@ -101,8 +102,8 @@ class GenerateThread(threading.Thread):
                                     format='%Y-%m-%dT%H:%M:%S',     # allowing them to be automatically sized on axis
                                     errors='ignore')
 
-        ''' Define resolution (1280x720) '''
-        fig, ax1 = plt.subplots(figsize=(1280*self.px, 720*self.px),
+        ''' Define resolution (1280x1280) '''
+        fig, ax1 = plt.subplots(figsize=(1280*self.px, 1280*self.px),
                                 facecolor=self.colors['background'])
 
         ax1.set_facecolor(self.colors['background'])                # TEMPERATURE
@@ -110,13 +111,14 @@ class GenerateThread(threading.Thread):
                     color=self.colors['temp'],
                     label='Temperature')
         ax1.axhline(y=self.targets[0],                              # user-specified target value
-                    color=self.colors['temp'],
-                    linestyle='dotted',
+                    color=self.colors['title'],
+                    linestyle='dashdot',
                     label='Target')
         ax1.set_xlabel('time', color=self.colors['label'])
         ax1.set_ylabel('Temperature (celsius)',
                         color=self.colors['label'])
-        ax1.set_ylim(self.targets[0]-20, self.targets[0]+20)          # specify graph axis to get within +=20 from the target
+        ax1.set_ylim(self.targets[0]-self.scale,                    # specify graph axis to get within +-scale from target
+                     self.targets[0]+self.scale)
         ax1.tick_params(colors=self.colors['label'], which='both')
         ax1.spines[:].set_color(self.colors['label'])               # frame around graph
         ax1.legend(loc='upper right')
@@ -132,12 +134,12 @@ class GenerateThread(threading.Thread):
                  color=self.colors['humid'],
                  label='Humidity')
         ax2.axhline(y=self.targets[1],                              # user-specified target value
-                    color=self.colors['humid'],
-                    linestyle='dashdot',
-                    label='Low')
+                    color=self.colors['title'],
+                    linestyle='dotted',
+                    label='Target')
         ax2.set_ylabel('Humidity (percent)',
                        color=self.colors['label'])
-        ax2.set_ylim(self.targets[1]-20, self.targets[1]+20)
+        ax2.set_ylim(self.targets[1]-self.scale, self.targets[1]+self.scale)
         ax2.tick_params(colors=self.colors['label'], which='both')
         ax2.spines[:].set_color(self.colors['label'])               # frame around graph
         ax2.legend(loc='lower right')
@@ -194,8 +196,8 @@ def main():
     if not args.graph_name.endswith('.png'):                        # hope user knows what they're doing
         test_logger.warning(f"Specified graph name does not end in \".png\"!")
 
-    generator = GenerateThread(test_logger, args.file, args.graph_name, 21, 45, 5)
-    generator.debug()
+    generator = GenerateThread(test_logger, args.file, args.graph_name, 20, 40, 7.5, 300)
+    generator.debug()                                               # calls the single-iteration debug method
 
     test_logger.debug(f'Exiting genVisuals.py test...')
 

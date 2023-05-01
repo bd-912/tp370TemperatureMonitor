@@ -35,10 +35,12 @@ def parse_arguments():
                         default="defaultRecords.csv")
     parser.add_argument("-d", "--delay", help="Specify time inbetween sensor polls. Default is five minutes.",
                         default=300, type=int)
-    parser.add_argument("-t", "--temperature", help="Specify target temperature, in celcius. Default is 21",
-                        default=21, type=int)
+    parser.add_argument("-t", "--temperature", help="Specify target temperature, in celcius. Default is 20",
+                        default=20, type=int)
     parser.add_argument("-m", "--humidity", help="Specify target humidity. Default is 45.",
                         default=45, type=int)
+    parser.add_argument("-s", "--scale", help="Specify the scale of values around the targets. Small values improve visibility, but may cut off values. Default 15, recommended 10-20.",
+                        default=15, type=int)
     parser.add_argument("-v", "--verbose", help="Enable full debug logs. See householdMonitor.log for information.",
                         action="store_true")
 
@@ -81,10 +83,10 @@ def main():
 
     controller_logger.info(f'Generating new genVisuals thread...')
     controller_logger.debug(f'inputFile is %s, temperature is %d C,'
-                            f'humidity is %d, debug status %s',
-                 args.file, args.temperature, args.humidity, args.verbose)
+                            f'humidity is %d, scale is %d, debug status %s',
+                 args.file, args.temperature, args.humidity, args.scale, args.verbose)
     gen_thread = GenerateThread(gen_logger, args.file,
-                                "defaultGraph.png", args.temperature, args.humidity, args.delay)
+                                "defaultGraph.png", args.temperature, args.humidity, args.scale, args.delay)
 
     poll_thread.start()                                             # calls the run() method
     gen_thread.start()
