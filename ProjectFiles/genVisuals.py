@@ -152,8 +152,14 @@ class GenerateThread(threading.Thread):
         plt.close()                                                 # close the figure (saves resources)
 
     def _create_table(self):
-        table = self.df.iloc[3:, -1]                                # grab table elements
+        averages = self.df.iloc[-1:,-2:]                            # get last row of the last two columns
+        # self.logger.debug(type(averages))
+        # self.logger.debug(type(self.df))
+        # self.logger.debug(averages.shape)
+        averages.to_html("averageTable.htm")
         self.df.to_html("defaultTable.htm")
+
+
 
 
 '''Testing-Section--------------------------'''
