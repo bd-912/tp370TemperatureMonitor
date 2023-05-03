@@ -31,8 +31,8 @@ class GenerateThread(threading.Thread):
         self.logger = logger
         self.input_file = input_file
         self.output_file = output_file
-        self.targets = (targetT, targetH)                           # ideal readings user-specified
-        self.scale = scale;
+        self.targets = (targetT, targetH, targetT*(9/5)+32)         # ideal readings user-specified
+        self.scale = (scale, scale*(9/5));                          # converting with +32 would be wrong for scale
         self.max_display = int((24*60*60)/delay)                    # 24 hours of readings (size of graph x-axis
 
         self.df = None                                              # initialized in _get_dataframe()
@@ -102,9 +102,10 @@ class GenerateThread(threading.Thread):
                                     format='%Y-%m-%dT%H:%M:%S',     # allowing them to be automatically sized on axis
                                     errors='ignore')
 
-        ''' Define resolution (1280x1280) '''
-        fig, ax1 = plt.subplots(figsize=(1280*self.px, 1280*self.px),
+        ''' Define resolution (1280x1024) '''
+        fig, ax1 = plt.subplots(figsize=(1690*self.px, 1050*self.px),
                                 facecolor=self.colors['background'])
+        fig.subplots_adjust(left=0.12)                               # move over for two temp axis
 
         ax1.set_facecolor(self.colors['background'])                # TEMPERATURE
         ax1.scatter(timestamps, temperatures,
@@ -117,8 +118,8 @@ class GenerateThread(threading.Thread):
         ax1.set_xlabel('time', color=self.colors['label'])
         ax1.set_ylabel('Temperature (celsius)',
                         color=self.colors['label'])
-        ax1.set_ylim(self.targets[0]-self.scale,                    # specify graph axis to get within +-scale from target
-                     self.targets[0]+self.scale)
+        ax1.set_ylim(self.targets[0]-self.scale[0],                 # specify graph axis to get within +-scale from target
+                     self.targets[0]+self.scale[0])
         ax1.tick_params(colors=self.colors['label'], which='both')
         ax1.spines[:].set_color(self.colors['label'])               # frame around graph
         ax1.legend(loc='upper right')
@@ -139,15 +140,27 @@ class GenerateThread(threading.Thread):
                     label='Target')
         ax2.set_ylabel('Humidity (percent)',
                        color=self.colors['label'])
-        ax2.set_ylim(self.targets[1]-self.scale, self.targets[1]+self.scale)
+        ax2.set_ylim(self.targets[1]-self.scale[0],
+                     self.targets[1]+self.scale[0])
         ax2.tick_params(colors=self.colors['label'], which='both')
         ax2.spines[:].set_color(self.colors['label'])               # frame around graph
         ax2.legend(loc='lower right')
 
+        ax3 = ax1.twinx()
+        ax3.spines["left"].set_position(("axes", -0.06))            # move floating spine near deg C
+        ax3.set_ylabel('Temperature (fahrenheit)',
+                        color=self.colors['label'])
+        ax3.set_ylim(self.targets[2]-self.scale[1],
+                     self.targets[2]+self.scale[1])
+        ax3.tick_params(colors=self.colors['label'], which='both')
+        ax3.yaxis.set_label_position('left')
+        ax3.yaxis.set_ticks_position('left')
+        ax3.spines[:].set_color(self.colors['label'])               # frame around graph
+
         #fig.suptitle('24-Hour Readings',                           # Website contains this information
         #             color=self.colors['title'],
         #             fontsize=20)
-        plt.tight_layout()                                          # fixes overlapping
+        #plt.tight_layout()                                          # fixes overlapping
         plt.savefig(self.output_file, format='png')
         plt.close()                                                 # close the figure (saves resources)
 
